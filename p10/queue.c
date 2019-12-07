@@ -15,7 +15,7 @@ void queue_append (queue_t **queue, queue_t *elem) {
 	}
 
 	if(elem->prev!=NULL||elem->next!=NULL){
-		printf("Elemento não está em nenhuma outra fila!\n");
+		printf("Elemento está em outra fila!\n");
 		return ;
 	}
 

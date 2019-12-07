@@ -36,25 +36,31 @@ int ptrExit;
 /*****************************************************/
 unsigned int systime () ;
 void imprimeValores(task_t* task);
-
 int sem_create (semaphore_t *s, int value){
-	if(value > 0){
+	if(s!=NULL){
+		
+		//printf("isadorapinto!");
 		s->value=value;
+		s->task=NULL;
+		
 		return 0;
 	}
 	printf("ERRO! Valor inválido!");
 	return -1;
-	
+}
+
 int sem_down (semaphore_t *s){
+
 	if(s != NULL){
 		if(s->value<0){
 			task_t *ptr=taskAtual;
-			task_t *taskSemaforo=s->task;
+			//task_t *taskSemaforo=s->task;
 			queue_remove ((queue_t**) &pronta, (queue_t*) ptr);
-			queue_append ((queue_t **) &taskSemaforo, (queue_t*) ptr);
-			task_yield();
+			queue_append ((queue_t **) &s->task, (queue_t*) ptr);
+			
 		}
-		
+
+		task_yield();
 		return 0;
 	}
 	printf("ERRO! Semáforo inexistente ou destruído!");
@@ -62,11 +68,60 @@ int sem_down (semaphore_t *s){
 }
 
 int sem_up (semaphore_t *s){
-	if(s != NULL){
+	if(s->task != NULL){
+		task_t* filaSem = s->task;
+		queue_remove ((queue_t**) &s->task, (queue_t*) filaSem);
+		queue_append ((queue_t **) &pronta, (queue_t*) filaSem);
+
 		return 0;
 	}
 	printf("ERRO! Semáforo inexistente ou destruído!");
 	return -1;
+}
+
+int sem_destroy (semaphore_t *s){
+	
+	task_t* ptr;
+	task_t* ptr2;
+	if(s != NULL){
+		return -1;
+	}
+	if(s->task!=NULL){
+		 ptr = s->task;
+	}
+		
+	if(suspensa!=NULL){
+		 ptr2 = suspensa;
+	}
+		
+
+	while(s->task!=NULL){
+		printf("semDestroy\n");
+					ptr->state=PRONTA;
+					queue_remove ((queue_t**) &s->task, (queue_t*) ptr) ;
+					queue_append ((queue_t **) &pronta, (queue_t*) ptr);
+					if(s->task==NULL){
+						return 0;
+					}
+					ptr=s->task;
+			ptr=ptr->next;
+		}
+
+	
+	s->value=0;
+	while(suspensa!=NULL){
+		//printf("semDestroy\n");
+					ptr2->state=PRONTA;
+					queue_remove ((queue_t**) &suspensa, (queue_t*) ptr) ;
+					queue_append ((queue_t **) &pronta, (queue_t*) ptr);
+					if(suspensa==NULL){
+						return 0;
+					}
+					ptr2=suspensa;
+			ptr2=ptr2->next;
+		}
+
+
 }
 
 // tratador do sinal
