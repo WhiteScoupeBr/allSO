@@ -38,8 +38,6 @@ unsigned int systime () ;
 void imprimeValores(task_t* task);
 int sem_create (semaphore_t *s, int value){
 	if(s!=NULL){
-		
-		//printf("isadorapinto!");
 		s->value=value;
 		s->task=NULL;
 		
@@ -53,25 +51,23 @@ int sem_down (semaphore_t *s){
 
 	if(s != NULL){
 		if(s->value<0){
-			task_t *ptr=taskAtual;
-			//task_t *taskSemaforo=s->task;
-			queue_remove ((queue_t**) &pronta, (queue_t*) ptr);
-			queue_append ((queue_t **) &s->task, (queue_t*) ptr);
-			
+			task_suspend(taskAtual,&pronta);
 		}
-
-		task_yield();
+		
 		return 0;
+		
 	}
 	printf("ERRO! Semáforo inexistente ou destruído!");
 	return -1;
 }
 
 int sem_up (semaphore_t *s){
-	if(s->task != NULL){
-		task_t* filaSem = s->task;
-		queue_remove ((queue_t**) &s->task, (queue_t*) filaSem);
-		queue_append ((queue_t **) &pronta, (queue_t*) filaSem);
+
+	if(s != NULL){
+		if(s->task!=NULL){
+			task_resume(s->task);
+
+		}
 
 		return 0;
 	}
@@ -82,43 +78,20 @@ int sem_up (semaphore_t *s){
 int sem_destroy (semaphore_t *s){
 	
 	task_t* ptr;
-	task_t* ptr2;
-	if(s != NULL){
+	if(s == NULL){
 		return -1;
 	}
-	if(s->task!=NULL){
-		 ptr = s->task;
-	}
-		
-	if(suspensa!=NULL){
-		 ptr2 = suspensa;
-	}
-		
+	
+	 
+
 
 	while(s->task!=NULL){
-		printf("semDestroy\n");
-					ptr->state=PRONTA;
-					queue_remove ((queue_t**) &s->task, (queue_t*) ptr) ;
-					queue_append ((queue_t **) &pronta, (queue_t*) ptr);
-					if(s->task==NULL){
-						return 0;
-					}
-					ptr=s->task;
-			ptr=ptr->next;
+		ptr = s->task;
+		task_resume(ptr);
+		if(s->task==NULL){
+			return 0;
 		}
-
-	
-	s->value=0;
-	while(suspensa!=NULL){
-		//printf("semDestroy\n");
-					ptr2->state=PRONTA;
-					queue_remove ((queue_t**) &suspensa, (queue_t*) ptr) ;
-					queue_append ((queue_t **) &pronta, (queue_t*) ptr);
-					if(suspensa==NULL){
-						return 0;
-					}
-					ptr2=suspensa;
-			ptr2=ptr2->next;
+				
 		}
 
 
@@ -311,6 +284,8 @@ int task_create (task_t *task, void (*start_routine)(void *), void *arg){
 	task->processTime=0;
 	task->activs=0;
 	getcontext (&task->context);
+	task->next=NULL;
+	task->prev=NULL;
 
 	stack = malloc (STACKSIZE) ;
 	if (stack){
