@@ -30,7 +30,7 @@ task_t *taskMain;
 task_t *pronta,*suspensa,*terminada,*exec,*soneca;
 task_t dispatcher;
 unsigned int tempo=0;
-unsigned int soma=0;
+unsigned int somaAux=0;
 int ptrExit;
 
 /*****************************************************/
@@ -40,7 +40,6 @@ int sem_create (semaphore_t *s, int value){
 	if(s!=NULL){
 		s->value=value;
 		s->task=NULL;
-		
 		return 0;
 	}
 	printf("ERRO! Valor inválido!");
@@ -50,6 +49,7 @@ int sem_create (semaphore_t *s, int value){
 int sem_down (semaphore_t *s){
 
 	if(s != NULL){
+		s->value--;
 		if(s->value<0){
 			task_suspend(taskAtual,&pronta);
 		}
@@ -65,8 +65,8 @@ int sem_up (semaphore_t *s){
 
 	if(s != NULL){
 		if(s->task!=NULL){
+			s->value++;
 			task_resume(s->task);
-
 		}
 
 		return 0;
@@ -82,19 +82,14 @@ int sem_destroy (semaphore_t *s){
 		return -1;
 	}
 	
-	 
-
-
 	while(s->task!=NULL){
 		ptr = s->task;
 		task_resume(ptr);
 		if(s->task==NULL){
 			return 0;
 		}
-				
-		}
-
-
+	}
+	return 0;
 }
 
 // tratador do sinal
@@ -217,15 +212,15 @@ void dispatcher_body (){ // dispatcher é uma tarefa
    while ( queue_size((queue_t*) pronta) > 0 ||queue_size((queue_t*) suspensa) > 0||queue_size((queue_t*) soneca) > 0)
    {
 		task_resume_soneca();
-		soma=0;
+		somaAux=0;
       	next = scheduler() ; // scheduler é uma função
-	  	soma= systime();
+	  	somaAux= systime();
       	if (next)
       	{
-			soma= systime();
+			somaAux= systime();
 			task_switch (next) ;
-			soma = systime()-soma;
-			next->processTime+=soma;
+			somaAux = systime()-somaAux;
+			next->processTime+=somaAux;
       	}
    }
  task_exit(0) ; // encerra a tarefa dispatcher
@@ -338,8 +333,8 @@ void task_exit (int exit_code){
 		queue_remove((queue_t**)&pronta,(queue_t*)taskAtual);
 		queue_append((queue_t**)&terminada,(queue_t*)taskAtual);
 		taskAtual->execTime= systime()-taskAtual->execTime;
-		soma = systime() -soma;
-		taskAtual->processTime+=soma;
+		somaAux = systime() -somaAux;
+		taskAtual->processTime+=somaAux;
 		imprimeValores(taskAtual);
 		taskAtual=&dispatcher;
 	}
