@@ -4,6 +4,7 @@
 #include "queue.h"
 #include <signal.h>
 #include <sys/time.h>
+#include <string.h>
 // operating system check
 #if defined(_WIN32) || (!defined(__unix__) && !defined(__unix) && (!defined(__APPLE__) || !defined(__MACH__)))
 #warning Este codigo foi planejado para ambientes UNIX (LInux, *BSD, MacOS). A compilacao e execucao em outros ambientes e responsabilidade do usuario.
@@ -48,13 +49,17 @@ int mqueue_create (mqueue_t *queue, int max, int size){
 		return -1;
 	}
 	else{
+		sem_create(&queue->colocar,max);
+		sem_create(&queue->forter,1);
+		sem_create(&queue->tirar,1);
 		queue->max=max;
 		queue->size=size;
-		queue->envia=NULL;
-		queue->recebe=NULL;
-		queue->prev=queue;
-		queue->next=queue;
-		queue->msg=NULL;
+		//queue->envia=NULL;
+		//queue->recebe=NULL;
+		//queue->prev=queue;
+		//queue->next=queue;
+		//queue->msg=NULL;
+		queue->count=0;
 		return 0;
 	}
 }
@@ -65,25 +70,70 @@ int mqueue_send (mqueue_t *queue, void *msg){
 		printf("ERRO! Não foi possível enviar Mensagem");
 		return -1;
 	}
+	else{
+		sem_down(&queue->colocar);
+		sem_down(&queue->forter);
+		//sTasks++;
+		mqueue_t *ptr = (mqueue_t*) malloc(sizeof(mqueue_t));
+		ptr->prev = NULL;
+		ptr->next = NULL;
+		ptr->msg = malloc(queue->size);
+		memcpy(msg, ptr->msg, queue->size);
+		queue->count++;
+		sem_up(&queue->colocar);
+		sem_up(&queue->forter);
 
-	 
+		return 0; 
+	}
+
+
     
-    return 0;
-
 }
 
 int mqueue_recv (mqueue_t *queue, void *msg){
+
+	if(queue==NULL){
+		printf("ERRO! Não foi possível receber Mensagem");
+		return -1;
+	}
+	else{
+		sem_down(&queue->tirar);
+		sem_down(&queue->forter);
+		//sTasks++;
+		mqueue_t *ptr = queue;
+		
+		memcpy(aux->msg,msg, queue->size);
+		queue->count--;
+		sem_up(&queue->tirar);
+		sem_up(&queue->forter);
+
+		return 0; 
+	}
+
+	
 
 
 }
 
 int mqueue_destroy (mqueue_t *queue){
 
+	if(queue==NULL){
+		printf("ERRO! Não foi possível DESTRUIR Mensagem");
+		return -1;
+	}
+	else{
+
+		sem_destroy (&queue->colocar);
+   		sem_destroy (&queue->tirar);
+    	sem_destroy (&queue->forter);
+
+	}
+
 }
 
 int mqueue_msgs (mqueue_t *queue){
 
-	 return (queue_size((queue_t*)queue) - 1);
+	 return queue->count;
 }
 
 int barrier_create (barrier_t *b, int N){
