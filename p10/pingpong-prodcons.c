@@ -48,7 +48,8 @@ for(int aux =0;aux<8;aux++)
 			break;
 		}
 	}
-	//printf ("%s produtor (%d)\n", (char *) task_id, item) ;
+	
+	printf (" produtor item: %d\n", item) ;
 	sem_up (&s_buffer);
 	sem_up (&s_item);
 	}
@@ -71,7 +72,7 @@ void consumidor(void * arg)
 		}
 		buffer[5]=-1;
 	}
-	//printf ("%s consumidor (%d)\n", (char *) task_id, item) ;
+	printf (" consumidor item: %d\n", item) ;
 	sem_up (&s_buffer);
 	sem_up (&s_vaga);
 	task_sleep (1);
