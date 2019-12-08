@@ -40,7 +40,6 @@ unsigned int systime () ;
 void imprimeValores(task_t* task);
 int sem_create (semaphore_t *s, int value){
 	if(s!=NULL&&value>=0){
-		s->d=0;
 		s->value=value;
 		s->task=NULL;
 		return 0;
@@ -100,7 +99,7 @@ int sem_up (semaphore_t *s){
 int sem_destroy (semaphore_t *s){
 	
 	queue_t* ptr;
-	s->d=1; //cara a vida é complicada, quando a gente esta animado para fazer, acha que tudo vai dar certo, algo que vc ja tinha 
+	 //cara a vida é complicada, quando a gente esta animado para fazer, acha que tudo vai dar certo, algo que vc ja tinha 
 	if(s == NULL){ //feito começa a dar errado e vc nao entende onde vc errou, pois aquilo estava no passado. As lembranças entao vem
 		return -1; // e vc percebe o efeito da nostalgia, e tudo aquilo que parecia maravilhoso vc percebe que era so sua mente 
 	}  				//alterando levemente as lembranças para elas parecerem melhores e tudo aquilo q vc viveu foi tao ruim quanto o q 
