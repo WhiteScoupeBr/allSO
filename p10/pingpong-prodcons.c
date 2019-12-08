@@ -6,6 +6,7 @@
 
 int item;
 int buffer[5];
+int prod =3;
 task_t p1,p2,p3,c1,c2;
 semaphore_t s_buffer, s_item, s_vaga ;
  
@@ -33,12 +34,12 @@ semaphore_t s_buffer, s_item, s_vaga ;
 void produtor(void * arg)
 {
 
-int j=0;
- while (j!=5)
+
+for(int aux =0;aux<8;aux++)
 	{
 	task_sleep (1);
 	
-	item = rand()%100;
+	item = random()%100;
 	sem_down (&s_vaga);
 	sem_down (&s_buffer);
 	for(int i=0;i<5;i++){
@@ -47,11 +48,11 @@ int j=0;
 			break;
 		}
 	}
+	//printf ("%s produtor (%d)\n", (char *) task_id, item) ;
 	sem_up (&s_buffer);
 	sem_up (&s_item);
-	printf ("%s produtor (%d)\n", (char *) arg, item) ;
-	j++;
 	}
+	prod--;
 	task_exit(0);
 }
 
@@ -59,22 +60,21 @@ int j=0;
 void consumidor(void * arg)
 {
 
-	int j=0;
-  while(j!=4)
+  while(0<prod)
 	{
 	sem_down (&s_item);
 	sem_down (&s_buffer);
 	if(buffer[0]!=-1){
+		item = buffer[0];
 		for(int i=0;i<4;i++){
 			buffer[i]=buffer[i+1];
 		}
 		buffer[5]=-1;
 	}
+	//printf ("%s consumidor (%d)\n", (char *) task_id, item) ;
 	sem_up (&s_buffer);
 	sem_up (&s_vaga);
-	printf ("%s consumidor (%d)\n", (char *) arg, item) ;
 	task_sleep (1);
-	j++;
 	}
 
 	task_exit(0);
@@ -84,15 +84,13 @@ int main(int argc, char *argv[]){
 
 
 	printf ("Main INICIO\n") ;
-
-	srand(time(NULL)); 
 	for(int i=0;i<5;i++){
 		buffer[i]=-1;
 		//printf("%d", buffer[i]);
 	}
 	pingpong_init();
 
-	sem_create (&s_item, 5) ;
+	sem_create (&s_item, 0) ;
 	sem_create (&s_vaga, 5) ;
 	sem_create (&s_buffer, 5) ;
 	task_create (&p1, produtor, "p1") ;
@@ -106,6 +104,9 @@ int main(int argc, char *argv[]){
 	task_join(&c1);
 	task_join(&c2);
 	
+	sem_destroy (&s_buffer);
+    sem_destroy (&s_vaga);
+    sem_destroy (&s_item);
 	
 	printf ("Main FIM\n") ;
    	task_exit (0) ;
