@@ -40,6 +40,52 @@ unsigned int systime () ;
 void imprimeValores(task_t* task);
 
 
+
+int mqueue_create (mqueue_t *queue, int max, int size){
+
+	if(queue==NULL){
+		printf("ERRO! Não foi possível criar fila");
+		return -1;
+	}
+	else{
+		queue->max=max;
+		queue->size=size;
+		queue->envia=NULL;
+		queue->recebe=NULL;
+		queue->prev=queue;
+		queue->next=queue;
+		queue->msg=NULL;
+		return 0;
+	}
+}
+
+int mqueue_send (mqueue_t *queue, void *msg){
+
+	if(queue==NULL){
+		printf("ERRO! Não foi possível enviar Mensagem");
+		return -1;
+	}
+
+	 
+    
+    return 0;
+
+}
+
+int mqueue_recv (mqueue_t *queue, void *msg){
+
+
+}
+
+int mqueue_destroy (mqueue_t *queue){
+
+}
+
+int mqueue_msgs (mqueue_t *queue){
+
+	 return (queue_size((queue_t*)queue) - 1);
+}
+
 int barrier_create (barrier_t *b, int N){
     if(N>0){
         b->N=N;
