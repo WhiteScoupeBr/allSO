@@ -49,13 +49,14 @@ int mqueue_create (mqueue_t *queue, int max, int size){
 		return -1;
 	}
 	else{
+		queue->alocar = malloc (max*size);
 		sem_create(&queue->colocar,max);
 		sem_create(&queue->forter,1);
 		sem_create(&queue->tirar,1);
 		queue->max=max;
 		queue->size=size;
-		//queue->envia=NULL;
-		//queue->recebe=NULL;
+		queue->start=0;
+		queue->space=0;
 		//queue->prev=queue;
 		//queue->next=queue;
 		//queue->msg=NULL;
@@ -74,12 +75,11 @@ int mqueue_send (mqueue_t *queue, void *msg){
 		sem_down(&queue->colocar);
 		sem_down(&queue->forter);
 		//sTasks++;
-		mqueue_t *ptr = (mqueue_t*) malloc(sizeof(mqueue_t));
-		ptr->prev = NULL;
-		ptr->next = NULL;
-		ptr->msg = malloc(queue->size);
-		memcpy(msg, ptr->msg, queue->size);
+		memcpy (queue->alocar + queue->space*queue->size , msg,queue->size);
+		queue->space = (queue->space +1) %  queue->max;
+
 		queue->count++;
+
 		sem_up(&queue->colocar);
 		sem_up(&queue->forter);
 
@@ -102,8 +102,8 @@ int mqueue_recv (mqueue_t *queue, void *msg){
 		//sTasks++;
 		mqueue_t *ptr = queue;
 		
-		memcpy(aux->msg,msg, queue->size);
-		queue->count--;
+		memcpy (msg, queue->alocar + queue->start*queue->size , queue->size);
+		queue->start = (queue->start +1) %  queue->max;
 		sem_up(&queue->tirar);
 		sem_up(&queue->forter);
 
@@ -122,7 +122,7 @@ int mqueue_destroy (mqueue_t *queue){
 		return -1;
 	}
 	else{
-
+		free(queue->alocar);
 		sem_destroy (&queue->colocar);
    		sem_destroy (&queue->tirar);
     	sem_destroy (&queue->forter);
@@ -326,7 +326,7 @@ void task_sleep(int t){
 
 
 	taskAtual->state=SUSPENSA;
-	taskAtual->tsono= (1000*t)+systime();
+	taskAtual->tsono= (int)(1000*t)+systime();
 	queue_remove ((queue_t**) &pronta, (queue_t*) taskAtual) ;
 	queue_append ((queue_t **) &soneca, (queue_t*) taskAtual);
 	task_yield();
