@@ -24,20 +24,22 @@ struct itimerval timer;
 
 ucontext_t contextMain;
 int idJoin;
-task_t *taskAtual;
-task_t *taskPtr;
-task_t *taskMain;
-task_t *pronta,*suspensa,*terminada,*exec,*soneca;
+task_t *taskAtual=NULL;
+task_t *taskPtr=NULL;
+task_t *taskMain=NULL;
+task_t *pronta=NULL,*suspensa=NULL,*terminada=NULL,*exec=NULL,*soneca=NULL;
 task_t dispatcher;
 unsigned int tempo=0;
 unsigned int somaAux=0;
 int ptrExit;
+int ctx =1;
+int sTasks=0;
 
 /*****************************************************/
 unsigned int systime () ;
 void imprimeValores(task_t* task);
 int sem_create (semaphore_t *s, int value){
-	if(s!=NULL){
+	if(s!=NULL&&value>=0){
 		s->value=value;
 		s->task=NULL;
 		return 0;
@@ -48,12 +50,24 @@ int sem_create (semaphore_t *s, int value){
 
 int sem_down (semaphore_t *s){
 
+	//printf("Life ");
 	if(s != NULL){
+		ctx=0;
 		s->value--;
 		if(s->value<0){
-			task_suspend(taskAtual,&pronta);
+			
+			queue_remove((queue_t **)&pronta, (queue_t *)taskAtual);
+			queue_append((queue_t **)&(s->task), (queue_t *)taskAtual);
+			//task_suspend(taskAtual,&pronta);
+			sTasks++;
+			ctx=1;
+			task_yield();
 		}
+
+		if(s==NULL)	
+			return -1;
 		
+		ctx=1;
 		return 0;
 		
 	}
@@ -63,28 +77,39 @@ int sem_down (semaphore_t *s){
 
 int sem_up (semaphore_t *s){
 
+	
 	if(s != NULL){
+		ctx=0;
+		s->value++;
 		if(s->task!=NULL){
-			s->value++;
-			task_resume(s->task);
+			queue_t* ptr = (queue_t*)s->task; 
+			queue_remove((queue_t **)&(s->task), (queue_t *)ptr);
+			queue_append((queue_t **)&pronta, (queue_t *)ptr);
+			sTasks--;
+			//task_resume(s->task);
 		}
-
+		ctx=1;
 		return 0;
 	}
+
 	printf("ERRO! Semáforo inexistente ou destruído!");
 	return -1;
 }
 
 int sem_destroy (semaphore_t *s){
 	
-	task_t* ptr;
-	if(s == NULL){
-		return -1;
-	}
-	
-	while(s->task!=NULL){
-		ptr = s->task;
-		task_resume(ptr);
+	queue_t* ptr;
+	 //cara a vida é complicada, quando a gente esta animado para fazer, acha que tudo vai dar certo, algo que vc ja tinha 
+	if(s == NULL){ //feito começa a dar errado e vc nao entende onde vc errou, pois aquilo estava no passado. As lembranças entao vem
+		return -1; // e vc percebe o efeito da nostalgia, e tudo aquilo que parecia maravilhoso vc percebe que era so sua mente 
+	}  				//alterando levemente as lembranças para elas parecerem melhores e tudo aquilo q vc viveu foi tao ruim quanto o q 
+					// vc esta vivendo agora. Isso acontece para suportarmos o peso do mundo e parecer que o passado nao foi tao ruim
+	while(s->task!=NULL){	 // nos dando a ilusão de que o futuro pode ser melhor, criando esperança. O problema é quando vc percebe
+		ptr = (queue_t*)s->task;// tudo isso e ve que nao há esperança no futuro e q ele será so uma repetição do q ja aconteceu, so q pior
+		queue_remove((queue_t **)&(s->task), (queue_t *)ptr);
+		queue_append((queue_t **)&pronta, (queue_t *)ptr);
+		sTasks--;
+		//task_resume(ptr);	// :(
 		if(s->task==NULL){
 			return 0;
 		}
@@ -97,7 +122,7 @@ void tratador (int signum)
 {
   tempo++; 
   taskAtual->quantum--;
-  if(taskAtual->flag==0){
+  if(taskAtual->flag==0 && ctx==1){
 		if(taskAtual->quantum==0){
 			task_yield();
 		}
@@ -122,12 +147,11 @@ int task_join(task_t *task){
 	
 	return ptrExit;
 }
-
 void task_sleep(int t){
 
 	
 	taskAtual->state=SUSPENSA;
-	taskAtual->tsono= (1000*t)+systime();
+	taskAtual->tsono= (unsigned int)(1000*t)+systime();
 	queue_remove ((queue_t**) &pronta, (queue_t*) taskAtual) ;
 	queue_append ((queue_t **) &soneca, (queue_t*) taskAtual);
 	task_yield();
@@ -141,7 +165,7 @@ void task_resume_soneca(){
 		
 		while(soneca!=NULL){
 		//printf("Entro\n");
-		if(ptr->tsono>=systime()){
+		if(ptr->tsono<=systime()){
 					ptr->state=PRONTA;
 					ptr->tsono=0;
 					queue_remove ((queue_t**) &soneca, (queue_t*) ptr) ;
@@ -156,7 +180,6 @@ void task_resume_soneca(){
 		
 	}
 }
-
 
 
 task_t * scheduler(){
@@ -209,7 +232,10 @@ void dispatcher_body (){ // dispatcher é uma tarefa
    //pronta=pronta->prev;
    task_t* next;
    
-   while ( queue_size((queue_t*) pronta) > 0 ||queue_size((queue_t*) suspensa) > 0||queue_size((queue_t*) soneca) > 0)
+   while ( queue_size((queue_t*) pronta) > 0 
+   ||queue_size((queue_t*) suspensa) > 0
+   ||queue_size((queue_t*) soneca) > 0 
+   ||sTasks> 0)
    {
 		task_resume_soneca();
 		somaAux=0;
@@ -278,9 +304,10 @@ int task_create (task_t *task, void (*start_routine)(void *), void *arg){
 	task->execTime=systime();
 	task->processTime=0;
 	task->activs=0;
-	getcontext (&task->context);
 	task->next=NULL;
 	task->prev=NULL;
+	getcontext (&task->context);
+	
 
 	stack = malloc (STACKSIZE) ;
 	if (stack){

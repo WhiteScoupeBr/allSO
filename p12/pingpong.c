@@ -4,6 +4,7 @@
 #include "queue.h"
 #include <signal.h>
 #include <sys/time.h>
+#include <string.h>
 // operating system check
 #if defined(_WIN32) || (!defined(__unix__) && !defined(__unix) && (!defined(__APPLE__) || !defined(__MACH__)))
 #warning Este codigo foi planejado para ambientes UNIX (LInux, *BSD, MacOS). A compilacao e execucao em outros ambientes e responsabilidade do usuario.
@@ -39,6 +40,100 @@ int sTasks=0;
 unsigned int systime () ;
 void imprimeValores(task_t* task);
 
+
+
+int mqueue_create (mqueue_t *queue, int max, int size){
+
+	if(queue==NULL||max<=0||size<=0){
+		printf("ERRO! Não foi possível criar fila");
+		return -1;
+	}
+	else{
+		queue->alocar = malloc (max*size);
+		sem_create(&queue->colocar,max);
+		sem_create(&queue->tirar,0);
+		queue->max=max;
+		queue->size=size;
+		queue->start=0;
+		queue->final=0;
+		queue->d=0;
+		queue->count=0;
+		return 0;
+	}
+}
+
+int mqueue_send (mqueue_t *queue, void *msg){
+
+	if(queue==NULL||queue->d==1||msg ==NULL){
+		printf("ERRO! Não foi possível enviar Mensagem");
+		return -1;
+	}
+	else{
+		sem_down(&queue->colocar);
+		//sTasks++;
+		if(queue->d==1){
+			return -1;
+		}
+		memcpy (queue->alocar + queue->start*queue->size , msg,queue->size);
+		queue->start = (queue->start +1) %  queue->max;
+
+		queue->count++;
+
+		sem_up(&queue->colocar);
+		sem_up(&queue->tirar);
+
+		return 0; 
+	}
+
+
+    
+}
+
+int mqueue_recv (mqueue_t *queue, void *msg){
+
+	if(queue==NULL||queue->d==1){
+		printf("ERRO! Não foi possível receber Mensagem");
+		return -1;
+	}
+	else{
+		sem_down(&queue->tirar);
+		if(queue->d==1){
+			return -1;
+		}
+		//sTasks++;
+		mqueue_t *ptr = queue;
+	
+		memcpy (msg, queue->alocar + queue->final*queue->size , queue->size);
+		queue->final = (queue->final+queue->max -1) %  queue->max;
+		
+		sem_up(&queue->tirar);
+		sem_up(&queue->colocar);
+		
+
+		return 0; 
+	}
+}
+
+int mqueue_destroy (mqueue_t *queue){
+
+	if(queue==NULL){
+		printf("ERRO! Não foi possível DESTRUIR Mensagem");
+		return -1;
+	}
+	else{
+		free(queue->alocar);
+		sem_destroy (&queue->colocar);
+   		sem_destroy (&queue->tirar);
+		queue->d=1;
+
+	}
+
+}
+
+int mqueue_msgs (mqueue_t *queue){
+
+	 return queue->count;
+}
 
 int barrier_create (barrier_t *b, int N){
     if(N>0){
@@ -130,21 +225,20 @@ int sem_down (semaphore_t *s){
 		ctx=0;
 		s->value--;
 		if(s->value<0){
-			
+			//task_suspend(taskAtual,&pronta);
 			queue_remove((queue_t **)&pronta, (queue_t *)taskAtual);
 			queue_append((queue_t **)&(s->task), (queue_t *)taskAtual);
-			//task_suspend(taskAtual,&pronta);
 			sTasks++;
 			ctx=1;
 			task_yield();
+			
 		}
-
+		
 		if(s==NULL)	
 			return -1;
 		
 		ctx=1;
 		return 0;
-		
 	}
 	printf("ERRO! Semáforo inexistente ou destruído!");
 	return -1;
@@ -184,6 +278,7 @@ int sem_destroy (semaphore_t *s){
 		queue_remove((queue_t **)&(s->task), (queue_t *)ptr);
 		queue_append((queue_t **)&pronta, (queue_t *)ptr);
 		sTasks--;
+		printf("Sem destruído.");
 		//task_resume(ptr);	// :(
 		if(s->task==NULL){
 			return 0;
@@ -225,7 +320,6 @@ int task_join(task_t *task){
 	
 	return ptrExit;
 }
-
 void task_sleep(int t){
 
 	
@@ -374,7 +468,7 @@ int task_create (task_t *task, void (*start_routine)(void *), void *arg){
 	static int id=0;
 	char *stack ;
 
-	id++;
+	
 
 	task->args = arg;
 	task->tid = id;
@@ -388,6 +482,7 @@ int task_create (task_t *task, void (*start_routine)(void *), void *arg){
 	task->prev=NULL;
 	getcontext (&task->context);
 	
+	id++;
 
 	stack = malloc (STACKSIZE) ;
 	if (stack){

@@ -50,7 +50,15 @@ typedef struct
 // estrutura que define uma fila de mensagens
 typedef struct
 {
-  // preencher quando necessário
+  int max;
+  int count;
+  int size;
+  void * alocar;
+  semaphore_t colocar;
+  semaphore_t tirar;
+  int final;
+  int start;
+  int d;
 } mqueue_t ;
 
 #endif
