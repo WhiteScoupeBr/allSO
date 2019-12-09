@@ -74,12 +74,14 @@ int mqueue_send (mqueue_t *queue, void *msg){
 		if(queue->d==1){
 			return -1;
 		}
+		//ctx=0;
+
 		memcpy (queue->alocar + queue->start*queue->size , msg,queue->size);
 		queue->start = (queue->start +1) %  queue->max;
 
 		queue->count++;
-
-		sem_up(&queue->colocar);
+		//ctx =1;
+		//sem_up(&queue->colocar);
 		sem_up(&queue->tirar);
 
 		return 0; 
@@ -101,12 +103,11 @@ int mqueue_recv (mqueue_t *queue, void *msg){
 			return -1;
 		}
 		//sTasks++;
-		mqueue_t *ptr = queue;
-	
+
 		memcpy (msg, queue->alocar + queue->final*queue->size , queue->size);
-		queue->final = (queue->final+queue->max -1) %  queue->max;
-		
-		sem_up(&queue->tirar);
+		//queue->final = (queue->final+queue->max -1) %  queue->max;
+		queue->final = (queue->final+1) %  queue->max;
+		//sem_up(&queue->tirar);
 		sem_up(&queue->colocar);
 		
 
@@ -116,7 +117,7 @@ int mqueue_recv (mqueue_t *queue, void *msg){
 
 int mqueue_destroy (mqueue_t *queue){
 
-	if(queue==NULL){
+	if(queue==NULL||queue->d==1){
 		printf("ERRO! Não foi possível DESTRUIR Mensagem");
 		return -1;
 	}

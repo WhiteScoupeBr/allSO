@@ -48,7 +48,7 @@ typedef struct
 } barrier_t ;
 
 // estrutura que define uma fila de mensagens
-typedef struct
+typedef struct 
 {
   int max;
   int count;
