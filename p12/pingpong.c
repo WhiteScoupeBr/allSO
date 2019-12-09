@@ -64,7 +64,7 @@ int mqueue_create (mqueue_t *queue, int max, int size){
 
 int mqueue_send (mqueue_t *queue, void *msg){
 
-	if(queue==NULL||queue->d==1){
+	if(queue==NULL||queue->d==1||msg ==NULL){
 		printf("ERRO! Não foi possível enviar Mensagem");
 		return -1;
 	}
@@ -74,8 +74,8 @@ int mqueue_send (mqueue_t *queue, void *msg){
 		if(queue->d==1){
 			return -1;
 		}
-		memcpy (queue->alocar + queue->final*queue->size , msg,queue->size);
-		queue->final = (queue->final +1) %  queue->max;
+		memcpy (queue->alocar + queue->start*queue->size , msg,queue->size);
+		queue->start = (queue->start +1) %  queue->max;
 
 		queue->count++;
 
@@ -102,10 +102,12 @@ int mqueue_recv (mqueue_t *queue, void *msg){
 		}
 		//sTasks++;
 		mqueue_t *ptr = queue;
+	
+		memcpy (msg, queue->alocar + queue->final*queue->size , queue->size);
+		queue->final = (queue->final+queue->max -1) %  queue->max;
 		
-		memcpy (msg, queue->alocar + queue->start*queue->size , queue->size);
-		queue->start = (queue->start +1) %  queue->max;
 		sem_up(&queue->tirar);
+		sem_up(&queue->colocar);
 		
 
 		return 0; 
@@ -215,13 +217,7 @@ int sem_create (semaphore_t *s, int value){
 	printf("ERRO! Valor inválido!");
 	return -1;
 }
-void down(semaphore_t *s){
-		queue_remove((queue_t **)&pronta, (queue_t *)taskAtual);
-		queue_append((queue_t **)&(s->task), (queue_t *)taskAtual);
-		sTasks++;
-		task_yield();
 
-}
 int sem_down (semaphore_t *s){
 
 	//printf("Life ");
@@ -229,9 +225,13 @@ int sem_down (semaphore_t *s){
 		ctx=0;
 		s->value--;
 		if(s->value<0){
-			down(s);
 			//task_suspend(taskAtual,&pronta);
+			queue_remove((queue_t **)&pronta, (queue_t *)taskAtual);
+			queue_append((queue_t **)&(s->task), (queue_t *)taskAtual);
+			sTasks++;
 			ctx=1;
+			task_yield();
+			
 		}
 		
 		if(s==NULL)	
@@ -468,7 +468,7 @@ int task_create (task_t *task, void (*start_routine)(void *), void *arg){
 	static int id=0;
 	char *stack ;
 
-	id++;
+	
 
 	task->args = arg;
 	task->tid = id;
@@ -482,6 +482,7 @@ int task_create (task_t *task, void (*start_routine)(void *), void *arg){
 	task->prev=NULL;
 	getcontext (&task->context);
 	
+	id++;
 
 	stack = malloc (STACKSIZE) ;
 	if (stack){
