@@ -41,6 +41,7 @@ void imprimeValores(task_t* task);
 void tratador (int signum)
 {
   tempo++; 
+  //printf("teste");
   taskAtual->quantum--;
   if(taskAtual->flag==0){
 		if(taskAtual->quantum==0){
@@ -72,7 +73,7 @@ void task_sleep(int t){
 
 	
 	taskAtual->state=SUSPENSA;
-	taskAtual->tsono= (1000*t)+systime();
+	taskAtual->tsono= (unsigned int)(1000*t)+systime();
 	queue_remove ((queue_t**) &pronta, (queue_t*) taskAtual) ;
 	queue_append ((queue_t **) &soneca, (queue_t*) taskAtual);
 	task_yield();
@@ -86,7 +87,7 @@ void task_resume_soneca(){
 		
 		while(soneca!=NULL){
 		//printf("Entro\n");
-		if(ptr->tsono>=systime()){
+		if(ptr->tsono<=systime()){
 					ptr->state=PRONTA;
 					ptr->tsono=0;
 					queue_remove ((queue_t**) &soneca, (queue_t*) ptr) ;

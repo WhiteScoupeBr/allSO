@@ -51,8 +51,8 @@ int mqueue_create (mqueue_t *queue, int max, int size){
 	else{
 		queue->alocar = malloc (max*size);
 		sem_create(&queue->colocar,max);
-		sem_create(&queue->forter,1);
-		sem_create(&queue->tirar,1);
+		sem_create(&queue->forter,max);
+		sem_create(&queue->tirar,max);
 		queue->max=max;
 		queue->size=size;
 		queue->start=0;
@@ -109,10 +109,6 @@ int mqueue_recv (mqueue_t *queue, void *msg){
 
 		return 0; 
 	}
-
-	
-
-
 }
 
 int mqueue_destroy (mqueue_t *queue){
@@ -321,16 +317,14 @@ int task_join(task_t *task){
 	
 	return ptrExit;
 }
-
 void task_sleep(int t){
 
-
+	
 	taskAtual->state=SUSPENSA;
-	taskAtual->tsono= (int)(1000*t)+systime();
+	taskAtual->tsono= (unsigned int)(1000*t)+systime();
 	queue_remove ((queue_t**) &pronta, (queue_t*) taskAtual) ;
 	queue_append ((queue_t **) &soneca, (queue_t*) taskAtual);
 	task_yield();
-
 }
 
 void task_resume_soneca(){
@@ -341,7 +335,7 @@ void task_resume_soneca(){
 		
 		while(soneca!=NULL){
 		//printf("Entro\n");
-		if(ptr->tsono>=systime()){
+		if(ptr->tsono<=systime()){
 					ptr->state=PRONTA;
 					ptr->tsono=0;
 					queue_remove ((queue_t**) &soneca, (queue_t*) ptr) ;
