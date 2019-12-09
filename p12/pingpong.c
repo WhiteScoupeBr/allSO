@@ -116,23 +116,33 @@ int mqueue_recv (mqueue_t *queue, void *msg){
 }
 
 int mqueue_destroy (mqueue_t *queue){
-
-	if(queue==NULL||queue->d==1){
+	
+	ctx=0;
+	if(queue==NULL){
 		printf("ERRO! Não foi possível DESTRUIR Mensagem");
+		ctx=1;
 		return -1;
 	}
 	else{
+		
 		free(queue->alocar);
 		sem_destroy (&queue->colocar);
    		sem_destroy (&queue->tirar);
 		queue->d=1;
-
+		ctx=1;
+		return 0;
 	}
+	ctx=1;
+	return -1;
 
 }
 
 int mqueue_msgs (mqueue_t *queue){
 
+	if(queue->d==1||queue==NULL){
+		return -1;
+	}
+	else
 	 return queue->count;
 }
 
