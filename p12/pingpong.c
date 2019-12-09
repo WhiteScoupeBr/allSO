@@ -50,12 +50,12 @@ int mqueue_create (mqueue_t *queue, int max, int size){
 	}
 	else{
 		queue->alocar = malloc (max*size);
-		sem_create(&queue->colocar,3);
-		sem_create(&queue->tirar,2);
+		sem_create(&queue->colocar,max);
+		sem_create(&queue->tirar,0);
 		queue->max=max;
 		queue->size=size;
 		queue->start=0;
-		queue->space=0;
+		queue->final=0;
 		queue->d=0;
 		queue->count=0;
 		return 0;
@@ -71,12 +71,16 @@ int mqueue_send (mqueue_t *queue, void *msg){
 	else{
 		sem_down(&queue->colocar);
 		//sTasks++;
-		memcpy (queue->alocar + queue->space*queue->size , msg,queue->size);
-		queue->space = (queue->space +1) %  queue->max;
+		if(queue->d==1){
+			return -1;
+		}
+		memcpy (queue->alocar + queue->final*queue->size , msg,queue->size);
+		queue->final = (queue->final +1) %  queue->max;
 
 		queue->count++;
 
 		sem_up(&queue->colocar);
+		sem_up(&queue->tirar);
 
 		return 0; 
 	}
@@ -93,12 +97,16 @@ int mqueue_recv (mqueue_t *queue, void *msg){
 	}
 	else{
 		sem_down(&queue->tirar);
+		if(queue->d==1){
+			return -1;
+		}
 		//sTasks++;
 		mqueue_t *ptr = queue;
 		
 		memcpy (msg, queue->alocar + queue->start*queue->size , queue->size);
-		queue->start = (queue->start +queue->max -1) %  queue->max;
+		queue->start = (queue->start +1) %  queue->max;
 		sem_up(&queue->tirar);
+		
 
 		return 0; 
 	}
@@ -114,7 +122,6 @@ int mqueue_destroy (mqueue_t *queue){
 		free(queue->alocar);
 		sem_destroy (&queue->colocar);
    		sem_destroy (&queue->tirar);
-    	sem_destroy (&queue->forter);
 		queue->d=1;
 
 	}
@@ -208,7 +215,13 @@ int sem_create (semaphore_t *s, int value){
 	printf("ERRO! Valor inválido!");
 	return -1;
 }
+void down(semaphore_t *s){
+		queue_remove((queue_t **)&pronta, (queue_t *)taskAtual);
+		queue_append((queue_t **)&(s->task), (queue_t *)taskAtual);
+		sTasks++;
+		task_yield();
 
+}
 int sem_down (semaphore_t *s){
 
 	//printf("Life ");
@@ -216,21 +229,16 @@ int sem_down (semaphore_t *s){
 		ctx=0;
 		s->value--;
 		if(s->value<0){
-			
-			queue_remove((queue_t **)&pronta, (queue_t *)taskAtual);
-			queue_append((queue_t **)&(s->task), (queue_t *)taskAtual);
+			down(s);
 			//task_suspend(taskAtual,&pronta);
-			sTasks++;
 			ctx=1;
-			task_yield();
 		}
-
+		
 		if(s==NULL)	
 			return -1;
 		
 		ctx=1;
 		return 0;
-		
 	}
 	printf("ERRO! Semáforo inexistente ou destruído!");
 	return -1;

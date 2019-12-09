@@ -56,8 +56,7 @@ typedef struct
   void * alocar;
   semaphore_t colocar;
   semaphore_t tirar;
-  semaphore_t forter;
-  int space;
+  int final;
   int start;
   int d;
 } mqueue_t ;
