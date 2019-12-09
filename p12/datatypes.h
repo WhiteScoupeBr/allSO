@@ -59,6 +59,7 @@ typedef struct
   semaphore_t forter;
   int space;
   int start;
+  int d;
 } mqueue_t ;
 
 #endif

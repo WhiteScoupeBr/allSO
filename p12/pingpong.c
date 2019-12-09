@@ -44,22 +44,19 @@ void imprimeValores(task_t* task);
 
 int mqueue_create (mqueue_t *queue, int max, int size){
 
-	if(queue==NULL){
+	if(queue==NULL||max<=0||size<=0){
 		printf("ERRO! Não foi possível criar fila");
 		return -1;
 	}
 	else{
 		queue->alocar = malloc (max*size);
-		sem_create(&queue->colocar,max);
-		sem_create(&queue->forter,max);
-		sem_create(&queue->tirar,max);
+		sem_create(&queue->colocar,3);
+		sem_create(&queue->tirar,2);
 		queue->max=max;
 		queue->size=size;
 		queue->start=0;
 		queue->space=0;
-		//queue->prev=queue;
-		//queue->next=queue;
-		//queue->msg=NULL;
+		queue->d=0;
 		queue->count=0;
 		return 0;
 	}
@@ -67,13 +64,12 @@ int mqueue_create (mqueue_t *queue, int max, int size){
 
 int mqueue_send (mqueue_t *queue, void *msg){
 
-	if(queue==NULL){
+	if(queue==NULL||queue->d==1){
 		printf("ERRO! Não foi possível enviar Mensagem");
 		return -1;
 	}
 	else{
 		sem_down(&queue->colocar);
-		sem_down(&queue->forter);
 		//sTasks++;
 		memcpy (queue->alocar + queue->space*queue->size , msg,queue->size);
 		queue->space = (queue->space +1) %  queue->max;
@@ -81,7 +77,6 @@ int mqueue_send (mqueue_t *queue, void *msg){
 		queue->count++;
 
 		sem_up(&queue->colocar);
-		sem_up(&queue->forter);
 
 		return 0; 
 	}
@@ -92,20 +87,18 @@ int mqueue_send (mqueue_t *queue, void *msg){
 
 int mqueue_recv (mqueue_t *queue, void *msg){
 
-	if(queue==NULL){
+	if(queue==NULL||queue->d==1){
 		printf("ERRO! Não foi possível receber Mensagem");
 		return -1;
 	}
 	else{
 		sem_down(&queue->tirar);
-		sem_down(&queue->forter);
 		//sTasks++;
 		mqueue_t *ptr = queue;
 		
 		memcpy (msg, queue->alocar + queue->start*queue->size , queue->size);
-		queue->start = (queue->start +1) %  queue->max;
+		queue->start = (queue->start +queue->max -1) %  queue->max;
 		sem_up(&queue->tirar);
-		sem_up(&queue->forter);
 
 		return 0; 
 	}
@@ -122,6 +115,7 @@ int mqueue_destroy (mqueue_t *queue){
 		sem_destroy (&queue->colocar);
    		sem_destroy (&queue->tirar);
     	sem_destroy (&queue->forter);
+		queue->d=1;
 
 	}
 
@@ -276,6 +270,7 @@ int sem_destroy (semaphore_t *s){
 		queue_remove((queue_t **)&(s->task), (queue_t *)ptr);
 		queue_append((queue_t **)&pronta, (queue_t *)ptr);
 		sTasks--;
+		printf("Sem destruído.");
 		//task_resume(ptr);	// :(
 		if(s->task==NULL){
 			return 0;
