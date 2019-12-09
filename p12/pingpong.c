@@ -74,17 +74,20 @@ int mqueue_send (mqueue_t *queue, void *msg){
 		if(queue->d==1){
 			return -1;
 		}
+		//ctx=0;
+
 		memcpy (queue->alocar + queue->start*queue->size , msg,queue->size);
 		queue->start = (queue->start +1) %  queue->max;
 
 		queue->count++;
-
-		sem_up(&queue->colocar);
+		//ctx =1;
+		//sem_up(&queue->colocar);
 		sem_up(&queue->tirar);
 
 		return 0; 
 	}
 
+	return -1;
 
     
 }
@@ -101,37 +104,48 @@ int mqueue_recv (mqueue_t *queue, void *msg){
 			return -1;
 		}
 		//sTasks++;
-		mqueue_t *ptr = queue;
-	
+
 		memcpy (msg, queue->alocar + queue->final*queue->size , queue->size);
-		queue->final = (queue->final+queue->max -1) %  queue->max;
-		
-		sem_up(&queue->tirar);
+		//queue->final = (queue->final+queue->max -1) %  queue->max;
+		queue->final = (queue->final+1) %  queue->max;
+		//sem_up(&queue->tirar);
 		sem_up(&queue->colocar);
 		
 
 		return 0; 
 	}
+
+		return -1;
+
 }
 
 int mqueue_destroy (mqueue_t *queue){
-
+	
+	ctx=0;
 	if(queue==NULL){
 		printf("ERRO! Não foi possível DESTRUIR Mensagem");
+		ctx=1;
 		return -1;
 	}
 	else{
-		free(queue->alocar);
 		sem_destroy (&queue->colocar);
    		sem_destroy (&queue->tirar);
 		queue->d=1;
-
+		free(queue->alocar);
+		ctx=1;
+		return 0;
 	}
+	ctx=1;
+	return -1;
 
 }
 
 int mqueue_msgs (mqueue_t *queue){
 
+	if(queue->d==1||queue==NULL){
+		return -1;
+	}
+	else
 	 return queue->count;
 }
 
@@ -212,6 +226,7 @@ int sem_create (semaphore_t *s, int value){
 	if(s!=NULL&&value>=0){
 		s->value=value;
 		s->task=NULL;
+		s->d=0;
 		return 0;
 	}
 	printf("ERRO! Valor inválido!");
@@ -221,7 +236,7 @@ int sem_create (semaphore_t *s, int value){
 int sem_down (semaphore_t *s){
 
 	//printf("Life ");
-	if(s != NULL){
+	if(s != NULL&&s->d==0){
 		ctx=0;
 		s->value--;
 		if(s->value<0){
@@ -247,7 +262,7 @@ int sem_down (semaphore_t *s){
 int sem_up (semaphore_t *s){
 
 	
-	if(s != NULL){
+	if(s != NULL&&s->d==0){
 		ctx=0;
 		s->value++;
 		if(s->task!=NULL){
@@ -268,22 +283,25 @@ int sem_up (semaphore_t *s){
 int sem_destroy (semaphore_t *s){
 	
 	queue_t* ptr;
-	 //cara a vida é complicada, quando a gente esta animado para fazer, acha que tudo vai dar certo, algo que vc ja tinha 
-	if(s == NULL){ //feito começa a dar errado e vc nao entende onde vc errou, pois aquilo estava no passado. As lembranças entao vem
-		return -1; // e vc percebe o efeito da nostalgia, e tudo aquilo que parecia maravilhoso vc percebe que era so sua mente 
-	}  				//alterando levemente as lembranças para elas parecerem melhores e tudo aquilo q vc viveu foi tao ruim quanto o q 
-					// vc esta vivendo agora. Isso acontece para suportarmos o peso do mundo e parecer que o passado nao foi tao ruim
-	while(s->task!=NULL){	 // nos dando a ilusão de que o futuro pode ser melhor, criando esperança. O problema é quando vc percebe
-		ptr = (queue_t*)s->task;// tudo isso e ve que nao há esperança no futuro e q ele será so uma repetição do q ja aconteceu, so q pior
+	 									//cara a vida é complicada, quando a gente esta animado para fazer, acha que tudo vai dar certo, algo que vc ja tinha 
+	if(s == NULL||s->d!=0){ 			//feito começa a dar errado e vc nao entende onde vc errou, pois aquilo estava no passado. As lembranças entao vem
+		return -1; 						// e vc percebe o efeito da nostalgia, e tudo aquilo que parecia maravilhoso vc percebe que era so sua mente 
+	}  									//alterando levemente as lembranças para elas parecerem melhores e tudo aquilo q vc viveu foi tao ruim quanto o q 
+	s->d=1;			
+	ctx=0;								// vc esta vivendo agora. Isso acontece para suportarmos o peso do mundo e parecer que o passado nao foi tao ruim
+	while(s->task!=NULL){				// nos dando a ilusão de que o futuro pode ser melhor, criando esperança. O problema é quando vc percebe
+		ptr = (queue_t*)s->task;		// tudo isso e ve que nao há esperança no futuro e q ele será so uma repetição do q ja aconteceu, so q pior
 		queue_remove((queue_t **)&(s->task), (queue_t *)ptr);
 		queue_append((queue_t **)&pronta, (queue_t *)ptr);
 		sTasks--;
 		printf("Sem destruído.");
-		//task_resume(ptr);	// :(
+		//task_resume(ptr);				// :(
 		if(s->task==NULL){
+			ctx=1;
 			return 0;
 		}
 	}
+	ctx=1;
 	return 0;
 }
 
@@ -292,7 +310,7 @@ void tratador (int signum)
 {
   tempo++; 
 
-  if(taskAtual->flag==1 || ctx==0)
+  if(ctx==0)
 		return;
   taskAtual->quantum--;
   if(taskAtual->flag==0 && ctx==1){
@@ -480,9 +498,10 @@ int task_create (task_t *task, void (*start_routine)(void *), void *arg){
 	task->activs=0;
 	task->next=NULL;
 	task->prev=NULL;
+	id++;
 	getcontext (&task->context);
 	
-	id++;
+	
 
 	stack = malloc (STACKSIZE) ;
 	if (stack){

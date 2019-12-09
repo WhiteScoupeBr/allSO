@@ -31,6 +31,7 @@ typedef struct
 {
   int value;
   task_t *task;
+  int d;
 } semaphore_t ;
 
 // estrutura que define um mutex
@@ -48,7 +49,7 @@ typedef struct
 } barrier_t ;
 
 // estrutura que define uma fila de mensagens
-typedef struct
+typedef struct 
 {
   int max;
   int count;
